@@ -30,31 +30,71 @@
 
     canvas{position:absolute;inset:0;width:100%;height:100%;display:block;pointer-events:auto}
 
+    /* compact HUD for small XE screen */
     .hud{
-      position:absolute;left:12px;right:12px;top:10px;
-      display:grid;grid-template-columns:1fr auto 1fr;
-      align-items:center;gap:10px;
+      position:absolute;left:10px;right:10px;top:8px;
+      display:flex;flex-direction:column;gap:6px;
       text-shadow:0 0 10px rgba(0,0,0,.6);
       z-index:10;pointer-events:none;
       transition:opacity .25s, transform .25s;
     }
-    .hud-left,.hud-center,.hud-right{display:flex;align-items:center;gap:10px}
-    .hud-left{pointer-events:none}
-    .hud-center{pointer-events:auto;justify-content:center;flex-wrap:wrap}
-    .hud-right{pointer-events:none;justify-content:flex-end;white-space:nowrap;font-weight:700;opacity:.95;color:var(--brand)}
-
+    .hud-top{
+      display:flex;align-items:center;gap:8px;
+      pointer-events:auto;
+    }
+    .hud-title{
+      font-weight:700;
+      color:var(--brand);
+      white-space:nowrap;
+      text-overflow:ellipsis;
+      overflow:hidden;
+      flex:1;
+      font-size:0.85rem;
+    }
+    .hud-controls{
+      display:flex;
+      flex-wrap:wrap;
+      gap:6px;
+      pointer-events:auto;
+      max-height:72px; /* two rows max */
+      overflow:hidden;
+    }
     .ctl{
-      padding:8px 14px;border-radius:999px;font-weight:800;letter-spacing:.4px;cursor:pointer;
-      background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);
-      box-shadow:0 0 0 1px rgba(255,255,255,.04) inset,0 10px 25px rgba(0,0,0,.55);
+      padding:6px 10px;
+      border-radius:999px;
+      font-weight:700;
+      font-size:0.7rem;
+      letter-spacing:.25px;
+      cursor:pointer;
+      background:rgba(255,255,255,.08);
+      border:1px solid rgba(255,255,255,.12);
+      box-shadow:0 0 0 1px rgba(255,255,255,.02) inset,0 8px 18px rgba(0,0,0,.4);
       backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
-      touch-action:manipulation;user-select:none;color:var(--hud)
+      color:var(--hud);
+      touch-action:manipulation;user-select:none;
     }
     .ctl:active{transform:scale(.98)}
 
+    .hud-toggle{
+      width:28px;height:28px;min-width:28px;
+      border-radius:999px;
+      background:rgba(0,0,0,.4);
+      border:1px solid rgba(255,255,255,.1);
+      display:flex;align-items:center;justify-content:center;
+      cursor:pointer;
+    }
+    .hud-toggle svg{
+      width:15px;height:15px;
+      fill:none;stroke:#fff;stroke-width:1.5;
+      transition:transform .2s ease;
+    }
+
+    .hud-collapsed .hud{transform:translateY(-55px);opacity:0;pointer-events:none;}
+    .hud-collapsed .hud-toggle svg{transform:rotate(180deg);}
+
     .hint{
-      position:absolute;left:50%;top:60px;transform:translateX(-50%);
-      padding:6px 10px;border-radius:999px;font-weight:700;letter-spacing:.3px;
+      position:absolute;left:50%;top:62px;transform:translateX(-50%);
+      padding:5px 10px;border-radius:999px;font-weight:700;font-size:0.65rem;letter-spacing:.3px;
       background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);
       color:var(--hudDim);z-index:9;pointer-events:none;opacity:0;transition:opacity .3s
     }
@@ -75,48 +115,30 @@
       letter-spacing:.32rem;
       text-transform:uppercase;
       color:#fff;
+      font-size:0.6rem;
     }
-
-    /* chevron toggle */
-    .hud-toggle{
-      pointer-events:auto;
-      width:30px;height:30px;
-      border-radius:999px;
-      background:rgba(0,0,0,.4);
-      border:1px solid rgba(255,255,255,.1);
-      display:flex;align-items:center;justify-content:center;
-      cursor:pointer;
-    }
-    .hud-toggle svg{
-      width:16px;height:16px;
-      fill:none;stroke:#fff;stroke-width:1.5;
-      transition:transform .2s ease; /* added */
-    }
-    .hud-collapsed .hud{transform:translateY(-60px);opacity:0;pointer-events:none;}
-    .hud-collapsed .hud-toggle svg{transform:rotate(180deg);} /* added */
   </style>
 </head>
 <body>
   <div class="stage">
     <canvas id="pond"></canvas>
 
-    <!-- chevron -->
-    <div class="hud-toggle" id="hudToggle" style="position:absolute;top:10px;left:10px;z-index:20;">
-      <svg viewBox="0 0 24 24">
-        <path d="M6 9l6 6 6-6" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
-    </div>
-
     <div class="hud" id="hud">
-      <div class="hud-left"></div>
-      <div class="hud-center">
+      <div class="hud-top">
+        <div class="hud-toggle" id="hudToggle">
+          <svg viewBox="0 0 24 24">
+            <path d="M6 9l6 6 6-6" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <div class="hud-title">Koi Pond — by Opulent Hardware</div>
+      </div>
+      <div class="hud-controls">
         <div class="ctl" id="pauseBtn">PAUSE</div>
         <div class="ctl" id="addBtn">ADD KOI</div>
         <div class="ctl" id="remBtn">REMOVE KOI</div>
         <div class="ctl" id="clearFood">CLEAR FOOD</div>
         <div class="ctl" id="scatterBtn">SCATTER</div>
       </div>
-      <div class="hud-right">Koi Pond — by Opulent Hardware</div>
     </div>
 
     <div class="hint" id="hint">Tap the water to drop food.</div>
@@ -568,7 +590,6 @@
   function hex(hexstr,a=1){const h=hexstr.replace('#','');const n=parseInt(h.length===3?h.split('').map(c=>c+c).join(''):h,16); const r=(n>>16)&255,g=(n>>8)&255,b=n&255;return `rgba(${r},${g},${b},${a})`; }
   function lerp(a,b,t){return a+(b-a)*t;}
 
-  // loop
   let last=performance.now();
   function step(now){
     const dt=Math.min(0.05,(now-last)/1000); last=now;
@@ -578,7 +599,6 @@
   }
   requestAnimationFrame(step);
 
-  // boot
   function resetHint(){ setTimeout(()=>hint.classList.add('show'),300); setTimeout(()=>hint.classList.remove('show'),4000); }
   spawnKoi(P.minKoi);
   resetHint();
