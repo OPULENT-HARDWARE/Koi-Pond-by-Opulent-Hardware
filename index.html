@@ -3,10 +3,16 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-<title>Koi Pond — BY OPULENT HARDWARE</title>
+<title>Koi Pond by Opulent Hardware </title>
 <link href="https://fonts.googleapis.com/css2?family=Saira:wght@400;600;800&display=swap" rel="stylesheet">
 <style>
-  :root { --bg:#000; --hud:#e8e8e8; --hudDim:#9aa0a6; --gridGlow:#00ff4c; --brand:rgba(255,255,255,0.9); }
+  :root {
+    --bg:#000;
+    --hud:#e8e8e8;
+    --hudDim:#9aa0a6;
+    --gridGlow:#00ff4c;
+    --brand:rgba(255,255,255,0.9);
+  }
   html,body{
     height:100%;width:100%;margin:0;background:var(--bg);color:var(--hud);
     font-family:"Saira",system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
@@ -30,12 +36,13 @@
     align-items:center;gap:10px;
     text-shadow:0 0 10px rgba(0,0,0,.6);
     z-index:10;pointer-events:none;
-    transition:opacity .25s;
+    transition:opacity .25s, transform .25s;
   }
   .hud-left,.hud-center,.hud-right{display:flex;align-items:center;gap:10px}
   .hud-left{pointer-events:none}
   .hud-center{pointer-events:auto;justify-content:center;flex-wrap:wrap}
   .hud-right{pointer-events:none;justify-content:flex-end;white-space:nowrap;font-weight:700;opacity:.95;color:var(--brand)}
+
   .badge{
     padding:6px 10px;border-radius:999px;white-space:nowrap;background:rgba(255,255,255,.06);
     box-shadow:0 0 24px rgba(0,0,0,.5) inset,0 0 24px rgba(0,0,0,.4);
@@ -79,11 +86,31 @@
     text-transform:uppercase;
     color:#fff;
   }
+
+  /* chevron toggle */
+  .hud-toggle{
+    pointer-events:auto;
+    width:30px;height:30px;
+    border-radius:999px;
+    background:rgba(0,0,0,.4);
+    border:1px solid rgba(255,255,255,.1);
+    display:flex;align-items:center;justify-content:center;
+    cursor:pointer;
+  }
+  .hud-toggle svg{width:16px;height:16px;fill:none;stroke:#fff;stroke-width:1.5;}
+  .hud-collapsed .hud{transform:translateY(-60px);opacity:0;pointer-events:none;}
 </style>
 </head>
 <body>
   <div class="stage">
     <canvas id="pond"></canvas>
+
+    <!-- chevron -->
+    <div class="hud-toggle" id="hudToggle" style="position:absolute;top:10px;left:10px;z-index:20;">
+      <svg viewBox="0 0 24 24">
+        <path d="M6 9l6 6 6-6" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
 
     <div class="hud" id="hud">
       <div class="hud-left">
@@ -91,7 +118,7 @@
         <div class="badge" id="foodCt">FOOD 0</div>
       </div>
       <div class="hud-center">
-        <div class="ctl" id="pauseBtn">RESUME</div>
+        <div class="ctl" id="pauseBtn">PAUSE</div>
         <div class="ctl" id="addBtn">ADD KOI</div>
         <div class="ctl" id="remBtn">REMOVE KOI</div>
         <div class="ctl" id="clearFood">CLEAR FOOD</div>
@@ -113,8 +140,6 @@
   // ---------- setup ----------
   window.addEventListener('contextmenu', e => e.preventDefault());
   const on=(el,evts,fn,opts={})=>evts.forEach(evt=>el.addEventListener(evt,fn,opts));
-  const prevent=fn=>e=>{e.preventDefault();fn(e);};
-
   const canvas=document.getElementById('pond');
   const ctx=canvas.getContext('2d',{alpha:false});
   const fishCt=document.getElementById('fishCt');
@@ -127,8 +152,10 @@
   const scatterBtn=document.getElementById('scatterBtn');
   const photoBtn=document.getElementById('photoBtn');
   const pausedBanner=document.getElementById('pausedBanner');
+  const hudToggle=document.getElementById('hudToggle');
 
-  let DPR=Math.max(1,Math.min(2,window.devicePixelRatio||1));
+  // cap DPR to 1 for smoother motion on widgets
+  let DPR = 1;
   function fit(){
     const w=canvas.clientWidth,h=canvas.clientHeight;
     canvas.width=Math.round(w*DPR);
@@ -138,8 +165,8 @@
   new ResizeObserver(fit).observe(canvas); fit();
 
   // ---------- state ----------
-  const S={paused:true,koi:[],foods:[],t:0, causticT:0};
-  const CAUSTIC_POINTS = Array.from({length:28},()=>({x:Math.random(),y:Math.random(),r:0.05+Math.random()*0.14, s:0.02+Math.random()*0.06}));
+  const S={paused:false,koi:[],foods:[],t:0, causticT:0};
+  const CAUSTIC_POINTS = Array.from({length:20},()=>({x:Math.random(),y:Math.random(),r:0.05+Math.random()*0.12, s:0.02+Math.random()*0.06}));
 
   const P={
     minKoi:8,maxKoi:24,
@@ -232,26 +259,49 @@
   }
 
   // ---------- UI ----------
-  on(pauseBtn,['pointerdown','touchstart','click'],prevent(()=>{
+  // use click ONLY to avoid double-toggles
+  pauseBtn.addEventListener('click', (e)=>{
+    e.preventDefault();
     S.paused=!S.paused;
     hud();
-  }),{passive:false});
+  });
 
-  on(addBtn,['pointerdown','touchstart','click'],prevent(()=>{if(S.koi.length<P.maxKoi)spawnKoi(1);}),{passive:false});
-  on(remBtn,['pointerdown','touchstart','click'],prevent(()=>{removeKoi(1);}),{passive:false});
-  on(clearFoodBtn,['pointerdown','touchstart','click'],prevent(()=>{S.foods.length=0; hud();}),{passive:false});
-  on(scatterBtn,['pointerdown','touchstart','click'],prevent(()=>{triggerScatter();}),{passive:false});
-  on(photoBtn,['pointerdown','touchstart','click'],prevent(()=>{
+  addBtn.addEventListener('click', (e)=>{
+    e.preventDefault();
+    if(S.koi.length<P.maxKoi)spawnKoi(1);
+  });
+  remBtn.addEventListener('click', (e)=>{
+    e.preventDefault();
+    removeKoi(1);
+  });
+  clearFoodBtn.addEventListener('click', (e)=>{
+    e.preventDefault();
+    S.foods.length=0; hud();
+  });
+  scatterBtn.addEventListener('click', (e)=>{
+    e.preventDefault();
+    triggerScatter();
+  });
+  photoBtn.addEventListener('click', (e)=>{
+    e.preventDefault();
     document.body.classList.toggle('hide-ui');
-  }),{passive:false});
+  });
 
   // tap to drop food (only if not paused)
-  on(canvas,['pointerdown','touchstart'],prevent((e)=>{
+  canvas.addEventListener('pointerdown', (e)=>{
     if (S.paused) return;
-    const r=canvas.getBoundingClientRect(); const t=e.changedTouches&&e.changedTouches[0];
-    const x=(t?t.clientX:e.clientX)-r.left, y=(t?t.clientY:e.clientY)-r.top;
+    e.preventDefault();
+    const r=canvas.getBoundingClientRect();
+    const x=e.clientX - r.left;
+    const y=e.clientY - r.top;
     dropFood(x,y);
-  }),{passive:false});
+  });
+
+  // hud chevron toggle
+  hudToggle.addEventListener('click', (e)=>{
+    e.preventDefault();
+    document.body.classList.toggle('hud-collapsed');
+  });
 
   // ---------- UPDATE ----------
   function updateKoi(dt){
@@ -356,17 +406,16 @@
       // unbiased 2D wander
       const wa = S.t*0.55 + k.wanderPhase;
       const wb = S.t*0.83 + k.wanderPhase*0.4;
-      steerX += Math.cos(wa) * wanderW * 24;
-      steerY += Math.sin(wb) * wanderW * 24;
+      steerX += Math.cos(wa) * wanderW * 20;
+      steerY += Math.sin(wb) * wanderW * 20;
 
       // scatter impulse
       if(k.scatterT>0){
         let sx=k.scatterDir.x, sy=k.scatterDir.y; [sx,sy]=setMag(sx,sy, P.scatterImpulse);
         [sx,sy]=limit(sx,sy,P.maxForce*1.5); steerX+=sx; steerY+=sy;
       } else if(noFood) {
-        // tiny drift
-        steerX+=rand(-20,20);
-        steerY+=rand(-20,20);
+        steerX+=rand(-12,12);
+        steerY+=rand(-12,12);
       }
 
       // integrate
@@ -392,7 +441,7 @@
     ctx.fillStyle="#000"; ctx.fillRect(0,0,w,h);
     const vign = ctx.createRadialGradient(w/2,h/2,0,w/2,h/2,Math.max(w,h)*0.7);
     vign.addColorStop(0,"rgba(0,0,0,0)");
-    vign.addColorStop(1,"rgba(0,0,0,0.6)");
+    vign.addColorStop(1,"rgba(0,0,0,0.55)");
     ctx.fillStyle=vign; ctx.fillRect(0,0,w,h);
     drawCaustics(w,h);
 
@@ -403,15 +452,15 @@
     for(const f of S.foods){
       const a=Math.max(0,Math.min(1,f.ttl/P.foodTTL));
       const r=9+6*(1-a)+1.5*Math.sin(S.t*3+f.x*0.01);
-      ctx.shadowBlur=18; ctx.shadowColor=bgGlow;
+      ctx.shadowBlur=10; ctx.shadowColor=bgGlow;
       ctx.fillStyle=hex(bgGlow,0.35+0.45*(1-a)); circle(f.x,f.y,r);
     }
     ctx.restore();
 
     // trails
-    ctx.save(); ctx.globalCompositeOperation='lighter'; ctx.lineWidth=2;
+    ctx.save(); ctx.globalCompositeOperation='lighter'; ctx.lineWidth=1.7;
     for(const k of S.koi){
-      ctx.shadowBlur=10; ctx.shadowColor=k.glow; ctx.strokeStyle=hex(k.glow,P.trailAlpha);
+      ctx.shadowBlur=8; ctx.shadowColor=k.glow; ctx.strokeStyle=hex(k.glow,P.trailAlpha);
       ctx.beginPath();
       for(let i=0;i<k.trail.length;i++){
         const p=k.trail[i];
@@ -427,13 +476,13 @@
       const ang=Math.atan2(k.vy,k.vx), sp=Math.hypot(k.vx,k.vy);
       const wob=Math.sin(k.tailT)*0.6 + Math.sin(k.tailT*0.33)*0.35;
       const body=22 + Math.min(16, sp*0.04), tail=body*1.1;
-      ctx.shadowBlur=22; ctx.shadowColor=k.glow;
+      ctx.shadowBlur=14; ctx.shadowColor=k.glow;
       drawKoiIndie(k.x,k.y,ang,body,tail,wob,k.pattern.base,k.blobs,k.glow);
     }
     ctx.restore();
 
     if(S.paused){
-      ctx.fillStyle="rgba(0,0,0,0.28)";
+      ctx.fillStyle="rgba(0,0,0,0.24)";
       ctx.fillRect(0,0,w,h);
     }
   }
@@ -464,7 +513,7 @@
 
     const grad=ctx.createLinearGradient(-body*0.6,-body*0.6,body*0.9,body*0.6);
     grad.addColorStop(0, hex(baseColor, 0.95));
-    grad.addColorStop(0.45, hex('#ffffff', 0.15));
+    grad.addColorStop(0.45, hex('#ffffff', 0.12));
     grad.addColorStop(1, hex(baseColor, 1.0));
     ctx.fillStyle = grad; ctx.fill(path);
 
@@ -481,7 +530,7 @@
     }
     ctx.restore();
 
-    ctx.save(); ctx.globalCompositeOperation='overlay'; ctx.fillStyle=hex('#ffffff',0.08);
+    ctx.save(); ctx.globalCompositeOperation='overlay'; ctx.fillStyle=hex('#ffffff',0.05);
     ellipse(body*0.58, 0, body*0.25, body*0.20); ctx.restore();
 
     ctx.save();
